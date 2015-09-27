@@ -3,6 +3,9 @@
 LOGS_MESSAGE_COLL = "logs_message"
 LOGS_ERROR_COLL = "logs_error"
 TRACKS_COLL = "tracks"
+SUBSCRIBE_COLL = "subscribe"
+
+async = require "async"
 
 class StorageDecorator
 
@@ -47,5 +50,50 @@ class StorageDecorator
         @logger.error err
       else
         @logger.info "Error log created"
+
+
+  getSubscriber: (message, callback)=>
+    async.waterfall(
+      [
+        async.apply @mongo.collection(SUBSCRIBE_COLL).findOne, {chat_id: message.chat.id}
+        (subscriber, taskCallback)=>
+          if subscriber
+
+            taskCallback null, subscriber
+
+          else
+
+            object = {
+              chat_id: message.chat.id
+              user: message.from
+              chat: message.chat
+              subscribe: []
+              unsubscribe: []
+            }
+
+            @mongo.collectionNative(SUBSCRIBE_COLL).insert object, (err, result)->
+              taskCallback err, result.ops[0]
+      ]
+      callback
+    )
+
+  subscribe: (message, code, callback)=>
+
+    async.waterfall(
+      [
+        async.apply @getSubscriber, message
+
+        (subscriber, taskCallback)=>
+
+          @mongo.collectionNative(SUBSCRIBE_COLL)
+          .update {_id: subscriber._id}, {$addToSet: {subscribe: {code, lastEvent: 0, timestamp: new Date()}}}, (err)->
+            taskCallback err, subscriber
+      ]
+      callback
+    )
+
+  unsubscribe: (message, code, callback)=>
+
+
 
 module.exports = StorageDecorator

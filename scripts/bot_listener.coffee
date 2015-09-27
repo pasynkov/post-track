@@ -28,6 +28,14 @@ class BotListener
 
     @bot.on "text", @handler
 
+    @handler {
+      text: "/subscribe RK026705563CN"
+      chat:
+        id: 20045630
+      from:
+        username: 'Pasynkov'
+    }
+
 
   handler: (message)=>
 
@@ -39,15 +47,20 @@ class BotListener
       message.isAdmin = true
 
     try
-      [messageText, command, code] = message.text.match "/(.*) (.*)"
+      [messageText, command, code] = message.text.match "/(.*) (.*)$"
+
+    unless command
+      try
+        [messageText, command] = message.text.match "/(.*)$"
 
     unless command
       @logger.info "Response `UNKNOWN_COMMAND`"
       return @bot.sendMessage message.chat.id, @config.messages.UNKNOWN_COMMAND
 
-    unless code
-      @logger.info "Response `UNKNOWN_CODE`"
-      return @bot.sendMessage message.chat.id, @config.messages.UNKNOWN_CODE
+    if command.toLowerCase() in ["where", "track", "subscribe", "unsubscribe"]
+      unless code
+        @logger.info "Response `UNKNOWN_CODE`"
+        return @bot.sendMessage message.chat.id, @config.messages.UNKNOWN_CODE
 
     action = _string.camelize "#{command.toLowerCase()}-action"
 
@@ -60,7 +73,8 @@ class BotListener
       if err
         @logger.error "Spawn err: `#{err}`"
         @storageDecorator.createErrorLog message, err
-        return @bot.sendMessage message.chat.id, @config.messages.ERROR
+        errorMessage = @config.messages.errors[err] or @config.messages.ERROR
+        return @bot.sendMessage message.chat.id, @config.messages.errors[err]
 
       async.mapSeries(
         results
@@ -71,6 +85,19 @@ class BotListener
 
             try
               @bot.sendMessage message.chat.id, answer
+            catch
+              @bot.sendMessage message.chat.id, @config.messages.ERROR
+
+            setTimeout(
+              ->
+                done()
+              500
+            )
+
+          if result.message
+
+            try
+              @bot.sendMessage message.chat.id, result.message
             catch
               @bot.sendMessage message.chat.id, @config.messages.ERROR
 

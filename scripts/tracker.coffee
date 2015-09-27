@@ -13,6 +13,7 @@ class Tracker
 
     @logger = vakoo.logger.tracker
     @config = vakoo.configurator.config.tracker
+    @messages = vakoo.configurator.config.telegram.messages
     @storageDecorator = new StorageDecorator
 
   whereAction: (callback)=>
@@ -75,6 +76,38 @@ class Tracker
   trekAction: (callback)=>
     @trackAction callback
 
+  aboutAction: (callback)=>
+
+    @logger.info "Run `about` action"
+
+    callback null, [message: @messages.ABOUT_MESSAGE]
+
+  helpAction: (callback)=>
+
+    @logger.info "Run `help` action"
+
+    callback null, [message: @messages.HELP_MESSAGE]
+
+  unsubscribeAction: (callback)=>
+    @logger.info "Run `unsubscribe` action with code `#{@code}`"
+    @storageDecorator.unsubscribe @message, @code, (err)=>
+      callback err, [message: @messages.SUBSCRIBE_MESSAGE]
+
+  subscribeAction: (callback)=>
+    @logger.info "Run `subscribe` action with code `#{@code}`"
+
+    async.parallel(
+      {
+        track: @trackAction
+        subscribe: async.apply @storageDecorator.subscribe, @message, @code
+      }
+      (err, {track})=>
+
+        unless err
+          @storageDecorator.getTrack @code
+
+        callback err, [message: @messages.SUBSCRIBE_MESSAGE]
+    )
 
   apiRequest: (params, callback)=>
 
@@ -95,9 +128,15 @@ class Tracker
         return callback "Code isnt 200 with body `#{body}`"
 
       try
+        [fullText, body] = body.match "\(({.*})\)"
+
+      try
         result = JSON.parse body
-        callback null, result
+        if result.status is "ok"
+          callback null, result
+        else
+          callback result.message
       catch
-        return callback "Cannot parse json"
+        return callback "Cannot parse json from body `#{body}`"
 
 module.exports = Tracker

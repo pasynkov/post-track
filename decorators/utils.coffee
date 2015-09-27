@@ -13,7 +13,7 @@ class UtilsDecorator
     calendarDate = eventMoment.format("lll")
 
     message = """
-      #{fromNowDate} (#{calendarDate})
+      Посылка была замечена #{fromNowDate} (#{calendarDate})
       #{point.operationAttribute} #{if point.operationType then "( #{point.operationType} )" else ""}
       #{if point.operationPlacePostalCode then "#{point.operationPlacePostalCode}, "  else ""}#{point.operationPlaceName}
 
